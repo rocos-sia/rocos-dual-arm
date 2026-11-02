@@ -1,0 +1,36 @@
+{
+  "baseline": {
+    "os": "Ubuntu 22.04 amd64",
+    "cxx": 17,
+    "gcc": "11.4.0",
+    "cmake_min": "3.22",
+    "java_min": 17
+  },
+  "repositories": {
+    "memory": {
+      "url": "https://github.com/eProsima/memory.git",
+      "tag": "vendor-1.4.1",
+      "commit": "1de8562aa2b8241ca3d562ddc6d1e9a5cfc07e94"
+    },
+    "fastcdr": {
+      "url": "https://github.com/eProsima/Fast-CDR.git",
+      "tag": "v2.3.6",
+      "commit": "d7219391608ae8cd7971e761206dc020098bacb3"
+    },
+    "fastdds": {
+      "url": "https://github.com/eProsima/Fast-DDS.git",
+      "tag": "v3.6.2",
+      "commit": "39303846fb8534ef69fa65f9fa4bcc9e6a7c995a"
+    },
+    "fastddsgen": {
+      "url": "https://github.com/eProsima/Fast-DDS-Gen.git",
+      "tag": "v4.3.0",
+      "commit": "cc0072b8849b35c67bd7e187990efad58e2871ae"
+    }
+  },
+  "memory_vendor_reference": {
+    "url": "https://github.com/eProsima/foonathan_memory_vendor.git",
+    "tag": "v1.4.1",
+    "commit": "347cb67581e51273a612780eb256a3c134c10bae"
+  }
+}

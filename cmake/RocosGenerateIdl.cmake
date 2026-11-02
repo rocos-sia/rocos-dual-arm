@@ -1,0 +1,51 @@
+include_guard(GLOBAL)
+function(rocos_generate_idl target)
+    cmake_parse_arguments(IDL "" "" "FILES;INCLUDE_DIRS;DEPENDS" ${ARGN})
+    if(NOT IDL_FILES)
+        message(FATAL_ERROR "rocos_generate_idl requires FILES")
+    endif()
+    find_program(FASTDDSGEN_EXECUTABLE fastddsgen REQUIRED)
+    execute_process(COMMAND ${FASTDDSGEN_EXECUTABLE} -version
+        OUTPUT_VARIABLE gen_version ERROR_VARIABLE gen_error RESULT_VARIABLE gen_result)
+    if(NOT gen_result EQUAL 0 OR NOT gen_version MATCHES "version 4\\.3\\.0([^0-9]|$)")
+        message(FATAL_ERROR "Fast DDS-Gen 4.3.0 required: ${gen_version} ${gen_error}")
+    endif()
+    set(output_dir ${CMAKE_CURRENT_BINARY_DIR}/generated/${target})
+    file(MAKE_DIRECTORY ${output_dir})
+    set(include_flags)
+    foreach(dir IN LISTS IDL_INCLUDE_DIRS)
+        get_filename_component(dir ${dir} ABSOLUTE)
+        list(APPEND include_flags -I ${dir})
+    endforeach()
+    set(all_inputs)
+    foreach(input IN LISTS IDL_FILES)
+        get_filename_component(input ${input} ABSOLUTE)
+        list(APPEND all_inputs ${input})
+    endforeach()
+    set(sources)
+    set(seen)
+    foreach(input IN LISTS all_inputs)
+        get_filename_component(base ${input} NAME_WE)
+        if(base IN_LIST seen)
+            message(FATAL_ERROR "IDL basename collision: ${base}")
+        endif()
+        list(APPEND seen ${base})
+        set(outputs ${output_dir}/${base}.hpp
+            ${output_dir}/${base}PubSubTypes.hpp ${output_dir}/${base}PubSubTypes.cxx
+            ${output_dir}/${base}TypeObjectSupport.hpp ${output_dir}/${base}TypeObjectSupport.cxx
+            ${output_dir}/${base}CdrAux.hpp ${output_dir}/${base}CdrAux.ipp)
+        add_custom_command(OUTPUT ${outputs}
+            COMMAND ${FASTDDSGEN_EXECUTABLE} -replace -d ${output_dir} ${include_flags} ${input}
+            DEPENDS ${all_inputs} ${IDL_DEPENDS}
+            COMMENT "Generating ${base} with Fast DDS-Gen 4.3.0" VERBATIM)
+        list(APPEND sources ${outputs})
+    endforeach()
+    add_library(${target} STATIC ${sources})
+    set_target_properties(${target} PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    target_compile_features(${target} PUBLIC cxx_std_17)
+    target_include_directories(${target} PUBLIC
+        $<BUILD_INTERFACE:${output_dir}>
+        $<INSTALL_INTERFACE:include/${target}>)
+    target_link_libraries(${target} PUBLIC fastdds fastcdr)
+    set(${target}_GENERATED_DIR ${output_dir} PARENT_SCOPE)
+endfunction()

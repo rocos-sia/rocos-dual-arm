@@ -1,7 +1,7 @@
-# 公共通信 SDK
+# 通用通信 SDK
 
-计划封装 Fast DDS 节点初始化、类型化发布订阅、QoS 预设、有界收发行为及诊断。
+已实现 Node、类型化 Publisher/Subscriber、异步 ServiceClient/ServiceServer。
 
-发布接口必须暴露失败与超时；订阅接口必须明确回调线程、队列容量和队列满行为。控制权、命令去重和运动规则由业务层实现。
+公共 API 位于 `include/rocos/comm/`，DDS 适配位于 `src/node.cpp`。业务端通过生成的类型支持类调用，无需创建原生 DDS 实体。
 
-当前为模块占位，尚无可调用 API 或 Fast DDS 依赖配置。
+行为和限制见 [通信契约](../docs/communication-contract.md)。

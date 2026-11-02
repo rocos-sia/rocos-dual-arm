@@ -1,0 +1,6 @@
+// This schema belongs only to the consumer, not the framework.
+module independent {
+    @final struct Reading { @key unsigned long channel; long number; };
+    @final struct AddRequest { long lhs; long rhs; };
+    @final struct AddResponse { long sum; };
+};

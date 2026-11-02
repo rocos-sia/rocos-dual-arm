@@ -1,0 +1,14 @@
+{
+  "version": 3,
+  "configurePresets": [{
+    "name": "dev", "generator": "Ninja", "binaryDir": "${sourceDir}/build",
+    "cacheVariables": {
+      "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+      "CMAKE_PREFIX_PATH": "${sourceDir}/work/deps-install",
+      "CMAKE_INSTALL_PREFIX": "${sourceDir}/install",
+      "FASTDDSGEN_EXECUTABLE": "${sourceDir}/work/deps-src/fastddsgen/scripts/fastddsgen"
+    }
+  }],
+  "buildPresets": [{"name": "dev", "configurePreset": "dev", "jobs": 4}],
+  "testPresets": [{"name": "dev", "configurePreset": "dev", "output": {"outputOnFailure": true}}]
+}

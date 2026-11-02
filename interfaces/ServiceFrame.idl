@@ -1,0 +1,15 @@
+// Internal v1 envelope. Application payload is generated-IDL XCDR1.
+module rocos_wire {
+    @final
+    struct ServiceFrame {
+        unsigned long protocol_version;
+        unsigned long kind; // 0=probe, 1=ready, 2=request, 3=response
+        string<128> client_id;
+        unsigned long long request_id;
+        string<128> server_id;
+        string<256> contract;
+        unsigned long status;
+        string<256> detail;
+        sequence<octet, 65536> payload;
+    };
+};

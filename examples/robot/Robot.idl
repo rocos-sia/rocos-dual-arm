@@ -1,0 +1,9 @@
+module demo {
+    @final struct State { unsigned long long sample_sequence; double position; };
+    @final struct CapabilitiesRequest { string<64> device; };
+    @final struct CapabilitiesResponse { string<64> device; unsigned long joints; string<64> instance; };
+    @final struct LeaseRequest { string<64> operation_id; string<64> owner; unsigned long duration_ms; };
+    @final struct LeaseResponse { string<64> lease_id; unsigned long long generation; unsigned long duration_ms; };
+    @final struct EchoRequest { long value; unsigned long delay_ms; };
+    @final struct EchoResponse { long value; };
+};

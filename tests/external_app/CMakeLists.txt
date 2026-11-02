@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.22)
+project(independent_consumer LANGUAGES CXX)
+find_package(rocos_comm 0.1 REQUIRED CONFIG)
+rocos_generate_idl(application_types FILES Application.idl)
+add_executable(independent_app main.cpp)
+target_link_libraries(independent_app PRIVATE rocos_comm::rocos_comm application_types)
