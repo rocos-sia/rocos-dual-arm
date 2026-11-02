@@ -64,3 +64,8 @@ if(BUILD_TESTING)
         set_tests_properties(process_integration PROPERTIES TIMEOUT 90)
     endif()
 endif()
+
+option(ROCOS_BUILD_CAMERA "Build draft RGB-D IDL and wire checks" OFF)
+if(ROCOS_BUILD_CAMERA)
+    add_subdirectory(protocols/camera)
+endif()

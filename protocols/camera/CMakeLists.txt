@@ -1,0 +1,10 @@
+# Draft business IDL only. No RealSense SDK or acquisition runtime dependency.
+rocos_generate_idl(rocos_camera_types FILES v1/Camera.idl)
+add_library(rocos_camera_protocol INTERFACE)
+target_include_directories(rocos_camera_protocol INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(rocos_camera_protocol INTERFACE rocos_camera_types rocos_comm)
+if(BUILD_TESTING)
+    add_executable(camera_protocol_tests tests/protocol.cpp)
+    target_link_libraries(camera_protocol_tests PRIVATE rocos_camera_protocol)
+    add_test(NAME camera_protocol_wire COMMAND camera_protocol_tests)
+endif()

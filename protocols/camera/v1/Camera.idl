@@ -1,0 +1,142 @@
+// RGB-D v1 draft. Byte bounds and semantic validation are both mandatory.
+module rocos { module camera { module v1 {
+    const unsigned long MAX_IMAGE_BYTES = 8388608;
+    const unsigned long MAX_PROFILES = 128;
+    typedef string<64> Identifier;
+    enum StreamKind { STREAM_UNKNOWN, STREAM_COLOR, STREAM_DEPTH };
+    enum PixelFormat { FORMAT_UNKNOWN, FORMAT_RGB8, FORMAT_Z16_LE };
+    enum ClockDomain { CLOCK_UNKNOWN, CLOCK_DEVICE, CLOCK_SYSTEM, CLOCK_GLOBAL };
+    enum DistortionModel {
+        DISTORTION_UNKNOWN, DISTORTION_NONE, DISTORTION_BROWN_CONRADY,
+        DISTORTION_MODIFIED_BROWN_CONRADY, DISTORTION_INVERSE_BROWN_CONRADY,
+        DISTORTION_FTHETA, DISTORTION_KANNALA_BRANDT4
+    };
+    enum DeviceState { DEVICE_UNKNOWN, DEVICE_DISCONNECTED, DEVICE_STOPPED, DEVICE_STREAMING, DEVICE_FAULT };
+    enum BusinessCode {
+        CAMERA_OK, CAMERA_INVALID_ARGUMENT, CAMERA_DISCONNECTED,
+        CAMERA_UNSUPPORTED_PROFILE, CAMERA_CONFIGURATION_CONFLICT,
+        CAMERA_INVALID_STATE, CAMERA_CALIBRATION_UNAVAILABLE, CAMERA_BACKEND_ERROR,
+        CAMERA_CAPACITY_EXCEEDED
+    };
+    enum PairingMethod { PAIRING_UNKNOWN, PAIRING_SDK_GROUPED, PAIRING_SOFTWARE, PAIRING_HARDWARE };
+    @final struct ResultInfo { BusinessCode code; string<512> message; };
+    @final struct EmptyRequest { octet reserved; };
+    @final struct StreamProfile {
+        Identifier profile_id;
+        StreamKind stream;
+        PixelFormat format;
+        unsigned long width;
+        unsigned long height;
+        unsigned long fps;
+    };
+    @final struct StreamConfiguration { StreamProfile color; StreamProfile depth; };
+    @final struct Capabilities {
+        Identifier instance_id;
+        unsigned long long control_revision;
+        Identifier device_id; // stable physical identity, e.g. RealSense serial
+        string<128> model;
+        string<128> firmware;
+        sequence<StreamProfile, MAX_PROFILES> profiles;
+        unsigned long image_capacity_bytes;
+    };
+    @final struct CapabilitiesResponse { ResultInfo result; boolean has_data; Capabilities data; };
+    @final struct ConfigurationData {
+        Identifier instance_id;
+        unsigned long long control_revision;
+        unsigned long long configuration_revision;
+        unsigned long long calibration_revision;
+        boolean configured;
+        StreamConfiguration configuration;
+    };
+    @final struct ConfigurationResponse { ResultInfo result; boolean has_data; ConfigurationData data; };
+    // CAS token changes after EVERY successful configure/start/stop or device transition.
+    // Separate from configuration_revision: delayed stop must not stop a later session.
+    @final struct WriteContext { Identifier instance_id; unsigned long long expected_control_revision; };
+    @final struct ConfigureRequest { WriteContext control; StreamConfiguration configuration; };
+    @final struct LifecycleRequest { WriteContext control; };
+    @final struct CameraStatus {
+        Identifier instance_id;
+        unsigned long long status_sequence;
+        Identifier device_id;
+        DeviceState state;
+        unsigned long long control_revision;
+        boolean configured;
+        Identifier capture_session; // new on every successful start
+        unsigned long long configuration_revision;
+        unsigned long long calibration_revision;
+        unsigned long long published_sets;
+        unsigned long long dropped_sets;
+        ResultInfo last_error;
+    };
+    @final struct StatusResponse { ResultInfo result; boolean has_data; CameraStatus data; };
+    @final struct CaptureTime {
+        long long timestamp_ns; // converted SDK timestamp; not necessarily Unix epoch
+        ClockDomain domain;
+        Identifier clock_id; // equal domain alone does NOT prove shared clock
+    };
+    @final struct FrameHeader {
+        Identifier instance_id;
+        Identifier capture_session;
+        unsigned long long configuration_revision;
+        unsigned long long calibration_revision;
+        Identifier profile_id;
+        Identifier optical_frame_id;
+        StreamKind stream;
+        unsigned long long frame_sequence; // transport stream sequence, starts at 1
+        unsigned long long source_frame_number; // SDK counter, may repeat in grouped frames
+        CaptureTime captured_at;
+        unsigned long long received_monotonic_ns; // publisher clock, scoped by instance_id
+    };
+    @final struct ImageFrame {
+        FrameHeader header;
+        unsigned long width;
+        unsigned long height;
+        unsigned long stride_bytes;
+        PixelFormat format;
+        double depth_scale_m; // >0 for Z16, zero for RGB8; Z16 value 0 = invalid
+        sequence<octet, MAX_IMAGE_BYTES> pixels;
+    };
+    @final struct FrameSet {
+        Identifier instance_id;
+        Identifier capture_session;
+        unsigned long long configuration_revision;
+        unsigned long long calibration_revision;
+        unsigned long long set_sequence;
+        unsigned long long color_sequence;
+        unsigned long long depth_sequence;
+        PairingMethod pairing;
+    };
+    @final struct Intrinsics {
+        Identifier profile_id;
+        Identifier optical_frame_id;
+        unsigned long width;
+        unsigned long height;
+        double fx;
+        double fy;
+        double cx;
+        double cy;
+        DistortionModel distortion;
+        double coefficients[5]; // model-specific; not every model is Brown-Conrady
+    };
+    @final struct Extrinsics {
+        Identifier source_frame;
+        Identifier target_frame;
+        double rotation[9]; // row-major; p_target = R * p_source + translation_m
+        double translation_m[3];
+    };
+    @final struct Calibration {
+        Identifier instance_id;
+        unsigned long long configuration_revision;
+        unsigned long long calibration_revision;
+        Intrinsics color;
+        Intrinsics depth;
+        Extrinsics depth_to_color;
+        double depth_scale_m;
+    };
+    @final struct CalibrationRequest {
+        Identifier instance_id;
+        unsigned long long configuration_revision;
+        unsigned long long calibration_revision; // exact lookup, no implicit "latest"
+    };
+    @final struct CalibrationResponse { ResultInfo result; boolean has_data; Calibration data; };
+}; }; };

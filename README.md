@@ -94,3 +94,7 @@ auto sub = node.subscriber<my_app::ReadingPubSubType>(
 - `controller/`、`sdk/`：历史预留目录，本版不实现控制器和 RobotClient。
 
 项目未指定开源许可证，上游依赖保留各自许可证。
+
+## 相机协议设计
+
+[RGB-D / D435 IDL 草案](protocols/camera/README.md) 定义原始彩色与深度、帧配对描述、标定/状态/能力查询、配置及启停。`-DROCOS_BUILD_CAMERA=ON` 可验证生成与编解码；本轮仅设计协议，不实现 RealSense 采集或消费端运行逻辑。
