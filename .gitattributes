@@ -1,0 +1,8 @@
+* text=auto
+*.md text eol=lf
+*.idl text eol=lf
+*.xml text eol=lf
+*.cpp text eol=lf
+*.hpp text eol=lf
+*.py text eol=lf
+*.sh text eol=lf

@@ -1,0 +1,28 @@
+# Build outputs
+/build/
+/cmake-build-*/
+/install/
+/log/
+compile_commands.json
+
+# Generated protocol code (generation will be configured later)
+/interfaces/generated/
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+
+# Editors and OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Python caches
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
