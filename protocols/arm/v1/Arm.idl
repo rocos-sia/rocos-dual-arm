@@ -1,0 +1,273 @@
+// Draft v1. Source and semantics: ../README.md. Not a controller implementation.
+// Bounds are DDS design decisions unless explicitly sourced in the README.
+module rocos { module arm { module v1 {
+    const unsigned long MAX_JOINTS = 16;
+    const unsigned long MAX_FRAMES = 128;
+    typedef string<64> FrameName;
+    typedef string<128> ClientId;
+    typedef string<256> ControlToken;
+    typedef string<1024> ControllerPath;
+    typedef sequence<double, MAX_JOINTS> JointVector;
+    typedef sequence<FrameName, MAX_FRAMES> FrameNames;
+    typedef double Twist6[6]; // vx, vy, vz, wx, wy, wz
+
+    // ABSENT and NULL are different when adapting older HTTP implementations.
+    enum Presence { FIELD_ABSENT, FIELD_NULL, FIELD_VALUE };
+    enum RobotState {
+        STATE_UNKNOWN, STATE_IDLE, STATE_ENABLING, STATE_DISABLING,
+        STATE_STARTING, STATE_STOPPING, STATE_PAUSING, STATE_RESUMING,
+        STATE_RESETTING, STATE_RUNNING, STATE_PAUSED, STATE_STOPPED,
+        STATE_SERVOING, STATE_ERROR
+    };
+    enum WorkMode {
+        WORK_UNSPECIFIED, WORK_POSITION, WORK_EE_ADMIT_TEACH,
+        WORK_JNT_ADMIT_TEACH, WORK_JNT_IMP, WORK_CART_IMP
+    };
+    enum ServoMode { SERVO_UNSPECIFIED, SERVO_JOINT, SERVO_CARTESIAN };
+    enum ReferenceFrame { FRAME_BASE, FRAME_FLANGE, FRAME_TOOL, FRAME_OBJECT };
+    enum Direction { DIRECTION_POSITIVE, DIRECTION_NEGATIVE, DIRECTION_NONE };
+    enum DragAxis {
+        DRAG_UNSPECIFIED, DRAG_J0, DRAG_J1, DRAG_J2, DRAG_J3,
+        DRAG_J4, DRAG_J5, DRAG_J6,
+        DRAG_TOOL_X, DRAG_TOOL_Y, DRAG_TOOL_Z,
+        DRAG_TOOL_ROLL, DRAG_TOOL_PITCH, DRAG_TOOL_YAW,
+        DRAG_FLANGE_X, DRAG_FLANGE_Y, DRAG_FLANGE_Z,
+        DRAG_FLANGE_ROLL, DRAG_FLANGE_PITCH, DRAG_FLANGE_YAW,
+        DRAG_OBJECT_X, DRAG_OBJECT_Y, DRAG_OBJECT_Z,
+        DRAG_OBJECT_ROLL, DRAG_OBJECT_PITCH, DRAG_OBJECT_YAW,
+        DRAG_BASE_X, DRAG_BASE_Y, DRAG_BASE_Z,
+        DRAG_BASE_ROLL, DRAG_BASE_PITCH, DRAG_BASE_YAW, DRAG_NULLSPACE
+    };
+
+    @final struct Vector3 { double x; double y; double z; };
+    @final struct Quaternion { double x; double y; double z; double w; };
+    // Explicitly supply a valid quaternion; a zero-initialized Pose3D is NOT identity.
+    @final struct Pose3D { Vector3 position; Quaternion orientation; };
+    @final struct OptionalDouble { boolean present; double value; };
+    @final struct OptionalBool { boolean present; boolean value; };
+    @final struct OptionalName { boolean present; FrameName value; };
+    @final struct OptionalPose { boolean present; Pose3D value; };
+    @final struct NullablePose { Presence presence; Pose3D value; };
+
+    @final struct BusinessResult {
+        boolean success;
+        long code; // signed HTTP business code, separate from comm::Error
+        string<1024> message;
+    };
+    @final struct EmptyRequest { octet reserved; }; // must be zero
+    @final struct ControlCredentials { ControlToken token; ClientId client_id; };
+    @final struct AuthorizedRequest { ControlCredentials control; };
+    @final struct ResultResponse { BusinessResult result; };
+    @final struct NameRequest { FrameName name; };
+    @final struct AuthorizedNameRequest { ControlCredentials control; FrameName name; };
+    @final struct PathRequest { ControlCredentials control; ControllerPath path; };
+    @final struct PathResponse { BusinessResult result; boolean has_data; ControllerPath path; };
+
+    // Tool metadata only. Binary resources and package management remain HTTP.
+    @final struct ToolPackage {
+        FrameName name;
+        string<128> package_version;
+        string<64> digest;
+        unsigned long long revision;
+        ControllerPath urdf;
+        Pose3D mount;
+        Pose3D tcp;
+        OptionalPose default_mount;
+        OptionalPose default_tcp;
+        boolean has_calibration_yaml;
+        string<4096> calibration_yaml;
+    };
+    @final struct NullableToolPackage { Presence presence; ToolPackage value; };
+    @final struct JointState {
+        long id;
+        FrameName name;
+        long status; // HTTP: 0 disabled, 1 fault, 2 enabled
+        double position;
+        double velocity;
+        double torque;
+        double load_torque;
+    };
+    @final struct HardwareState {
+        long joint_num;
+        long state; // HTTP: 0 disabled, 1 enabled, 2 error
+    };
+    @final struct RobotStateData {
+        RobotState robot_state;
+        WorkMode work_mode;
+        boolean is_enabled;
+        boolean is_running;
+        boolean control_active;
+        boolean motion_busy;
+        double timestamp; // epoch seconds; not a distributed deadline clock
+        sequence<JointState, MAX_JOINTS> joint_states;
+        Pose3D flange; // base -> flange
+        NullablePose tcp; // base -> TCP, ABSENT / NULL / VALUE
+        FrameName active_tool_frame_name;
+        Pose3D active_tool_frame; // flange -> TCP, fixed offset
+        FrameName active_object_frame_name;
+        Pose3D active_object_frame;
+        NullableToolPackage active_tool_package;
+        HardwareState hw_state;
+    };
+    // DDS-only publication metadata. A new instance_id after every publisher restart.
+    @final struct StateSample {
+        string<64> instance_id;
+        unsigned long long sample_sequence;
+        RobotStateData data;
+    };
+    @final struct StateResponse { BusinessResult result; boolean has_data; RobotStateData data; };
+    @final struct EnabledData { boolean enabled; boolean disabled; RobotState robot_state; };
+    @final struct EnabledResponse { BusinessResult result; boolean has_data; EnabledData data; };
+    @final struct TcpRequest { FrameName name; }; // empty = current tool
+    @final struct TcpData { Pose3D pose; }; // reference_frame is always "base"
+    @final struct TcpResponse { BusinessResult result; boolean has_data; TcpData data; };
+
+    // ControlToken intentionally excluded from owner/status data.
+    @final struct ControlOwnerData {
+        boolean has_owner;
+        string<64> owner_ip;
+        unsigned short owner_port;
+        string<128> owner_connection;
+        ClientId owner_client_id;
+        string<128> owner_name;
+        string<256> owner_agent;
+        unsigned long held_for_seconds;
+        unsigned long idle_seconds;
+        unsigned long expires_in_seconds;
+        unsigned long ttl_seconds;
+        double heartbeat_interval_seconds;
+    };
+    @final struct AcquireControlRequest { string<128> client_name; ClientId client_id; };
+    @final struct TakeoverControlRequest { string<128> client_name; ClientId client_id; };
+    @final struct ControlGrantData {
+        ControlOwnerData owner;
+        ControlToken token;
+        ClientId client_id;
+        boolean client_id_auto;
+    };
+    @final struct ControlGrantResponse { BusinessResult result; boolean has_data; ControlGrantData data; };
+    @final struct ControlStatusResponse { BusinessResult result; boolean has_data; ControlOwnerData data; };
+
+    @final struct SetWorkModeRequest { ControlCredentials control; WorkMode mode; };
+    @final struct ResetData { RobotState robot_state; boolean enabled; };
+    @final struct ResetResponse { BusinessResult result; boolean has_data; ResetData data; };
+    @final struct MotionData {
+        RobotState robot_state;
+        boolean control_active;
+        OptionalBool motion_busy;
+    };
+    @final struct MotionResponse { BusinessResult result; boolean has_data; MotionData data; };
+    // Missing scalar parameters select the HTTP defaults: 1, 2, 10.
+    @final struct MotionLimits {
+        OptionalDouble velocity;
+        OptionalDouble acceleration;
+        OptionalDouble jerk;
+    };
+    @final struct MoveJRequest { ControlCredentials control; JointVector joints; MotionLimits limits; };
+    @final struct MoveJIkRequest { ControlCredentials control; Pose3D pose; MotionLimits limits; };
+    @final struct MoveLRequest { ControlCredentials control; Pose3D pose; FrameName tool_name; MotionLimits limits; };
+    @final struct MoveLFkRequest { ControlCredentials control; JointVector joints; FrameName tool_name; MotionLimits limits; };
+    @final struct CenterArc { Pose3D center_frame; double theta; };
+    @final struct ThreePointArc { Pose3D pose_via; Pose3D pose_goal; };
+    enum ArcMode { ARC_UNSPECIFIED, ARC_CENTER, ARC_THREE_POINT };
+    @final union ArcTarget switch (ArcMode) {
+        case ARC_CENTER: CenterArc center;
+        case ARC_THREE_POINT: ThreePointArc three_point;
+        default: octet reserved; // ARC_UNSPECIFIED is invalid for execution
+    };
+    @final struct MoveCRequest {
+        ControlCredentials control;
+        OptionalPose pose_start; // absent = current flange at controller acceptance
+        ArcTarget target;
+        MotionLimits limits;
+    };
+    // Robot-wide status only; opaque HTTP task object is NOT frozen into this IDL.
+    @final struct MotionStatusData {
+        RobotState robot_state;
+        boolean is_running;
+        boolean control_active;
+    };
+    @final struct MotionStatusResponse { BusinessResult result; boolean has_data; MotionStatusData data; };
+    @final struct ServoModeRequest { ControlCredentials control; ServoMode mode; };
+    @final struct ServoStartRequest {
+        ControlCredentials control;
+        boolean has_port;
+        unsigned short port; // absent = 8081; valid explicit port: 1..65535
+    };
+    @final struct DragStartRequest {
+        ControlCredentials control;
+        DragAxis flag;
+        Direction direction;
+        OptionalDouble max_speed; // absent = 1
+        OptionalDouble max_acceleration; // absent = 2
+    };
+    @final struct JogOptions {
+        Direction direction; // positive by default; NONE invalid for jog
+        OptionalDouble speed; // absent = 1
+        OptionalDouble timeout; // seconds, absent = 0.1
+        OptionalDouble dir_threshold; // absent = 0.99
+    };
+    @final struct JointJogRequest { ControlCredentials control; JointVector joints; JogOptions options; };
+    @final struct CartesianJogRequest {
+        ControlCredentials control;
+        Twist6 twist;
+        ReferenceFrame frame; // default BASE
+        JogOptions options;
+    };
+    @final struct SvdJogRequest {
+        ControlCredentials control;
+        JointVector dim_speeds;
+        OptionalDouble timeout;
+        OptionalDouble dir_threshold;
+    };
+
+    @final struct JointImpedance { boolean valid; JointVector stiffness; JointVector damping; };
+    @final struct CartesianImpedance {
+        boolean valid;
+        double translational_stiffness; // N/m
+        double rotational_stiffness; // Nm/rad
+        double translational_damping; // Ns/m
+        double rotational_damping; // Nms/rad
+    };
+    @final struct ImpedanceData { WorkMode work_mode; JointImpedance joint_space; CartesianImpedance cartesian_space; };
+    @final struct ImpedanceResponse { BusinessResult result; boolean has_data; ImpedanceData data; };
+    @final struct LoadParameters { double mass; Vector3 com; }; // kg; flange-frame m
+    @final struct LoadState { boolean valid; LoadParameters parameters; };
+    @final struct LoadResponse { BusinessResult result; boolean has_data; LoadState data; };
+    @final struct SetLoadRequest { ControlCredentials control; LoadParameters parameters; }; // com defaults to zero
+    @final struct SetLoadResponse { BusinessResult result; boolean has_data; LoadParameters data; };
+
+    @final struct FrameListData { FrameNames names; FrameName active; };
+    @final struct FrameListResponse { BusinessResult result; boolean has_data; FrameListData data; };
+    @final struct ToolListData {
+        FrameNames names;
+        FrameName active;
+        ControllerPath file_path;
+        OptionalBool package_support;
+        OptionalName robot_id;
+    };
+    @final struct ToolListResponse { BusinessResult result; boolean has_data; ToolListData data; };
+    @final struct NamedFrameData { FrameName name; Pose3D frame; NullableToolPackage tool_package; };
+    @final struct NamedFrameResponse { BusinessResult result; boolean has_data; NamedFrameData data; };
+    @final struct SetToolFrameRequest {
+        ControlCredentials control;
+        FrameName name;
+        Pose3D frame;
+        boolean persist; // false = memory only
+        OptionalName previous_name;
+    };
+    @final struct SetToolFrameData { FrameName name; Pose3D frame; boolean persisted; };
+    @final struct SetToolFrameResponse { BusinessResult result; boolean has_data; SetToolFrameData data; };
+    @final struct ToolSelectionRequest { ControlCredentials control; FrameName name; boolean persist; };
+    @final struct ToolSelectionData { OptionalName name; FrameName active; boolean persisted; };
+    @final struct ToolSelectionResponse { BusinessResult result; boolean has_data; ToolSelectionData data; };
+    @final struct SetObjectFrameRequest { ControlCredentials control; FrameName name; Pose3D frame; };
+    @final struct FramesSnapshot {
+        ControllerPath path;
+        FrameNames tool_frames;
+        FrameNames object_frames;
+        FrameName active_tool_frame;
+        FrameName active_object_frame;
+    };
+    @final struct FramesResponse { BusinessResult result; boolean has_data; FramesSnapshot data; };
+}; }; };

@@ -14,6 +14,8 @@
 
 本版本不实现运动控制、Action、技能部署、Python SDK 或服务高可用。[历史双臂设计](docs/dual_arm_dds_interface_design.md) 保留原文，不是通用框架的冻结协议。
 
+机械臂业务消息正在独立设计，见 [机械臂 IDL 草案](protocols/arm/README.md)。草案包含 Topic、Service 类型及 Apifox 映射；可通过 `-DROCOS_BUILD_ARM_PROTOCOL=ON` 验证生成和编解码，不代表已实现控制器业务。
+
 ## 构建
 
 验证平台：Ubuntu 22.04 amd64、GCC 11.4、C++17、CMake 3.31.6（最低 3.22）、Ninja。构建生成器需要 JDK 17 或更新版本。
@@ -87,6 +89,7 @@ auto sub = node.subscriber<my_app::ReadingPubSubType>(
 
 - `comm/`：通用 C++ API 与 DDS 适配。
 - `interfaces/`：内部服务信封，业务应用无需修改。
+- `protocols/arm/`：独立、可选构建的机械臂业务 IDL 草案及接口目录。
 - `cmake/`：包配置和 IDL 生成函数。
 - `examples/robot/`：独立业务消息及示例。
 - `tests/`：集成、跨进程和外部项目验收。

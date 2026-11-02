@@ -39,6 +39,10 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/rocos_commConfig.cmake
 
 option(ROCOS_BUILD_EXAMPLES "Build service and pubsub examples" ON)
 include(CTest)
+option(ROCOS_BUILD_ARM_PROTOCOL "Build the draft arm business protocol and wire checks" OFF)
+if(ROCOS_BUILD_ARM_PROTOCOL)
+    add_subdirectory(protocols/arm)
+endif()
 if(ROCOS_BUILD_EXAMPLES OR BUILD_TESTING)
     rocos_generate_idl(demo_types FILES examples/robot/Robot.idl)
 endif()

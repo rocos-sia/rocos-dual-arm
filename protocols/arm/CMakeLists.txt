@@ -1,0 +1,10 @@
+# Business protocol: deliberately opt-in and not linked into rocos_comm.
+rocos_generate_idl(rocos_arm_types FILES v1/Arm.idl)
+add_library(rocos_arm_protocol INTERFACE)
+target_include_directories(rocos_arm_protocol INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(rocos_arm_protocol INTERFACE rocos_arm_types rocos_comm)
+if(BUILD_TESTING)
+    add_executable(arm_protocol_tests tests/roundtrip.cpp)
+    target_link_libraries(arm_protocol_tests PRIVATE rocos_arm_protocol)
+    add_test(NAME arm_protocol_roundtrip COMMAND arm_protocol_tests)
+endif()
